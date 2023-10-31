@@ -13,19 +13,24 @@ plugins {
 publishing {
     repositories {
         maven {
-            name = "OSSRH"
             url = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
             credentials {
                 username = System.getenv("USERNAME")
                 password = System.getenv("PASSWORD")
             }
-            group = "za.co.nabeelvalley"
-            version = "0.0.1"
         }
     }
     publications {
-        register<MavenPublication>("gpr") {
-            from(components.findByName("java"))
+        register<MavenPublication>("maven") {
+            from(components["java"])
+            groupId = "za.co.nabeelvalley"
+            version = "0.0.1"
+
+            pom {
+                name = "Kafka"
+                description = "Kafka for Kotlin"
+                url = "https://github.com/nabeelvalley/kotlin-kafka"
+            }
         }
     }
 }
