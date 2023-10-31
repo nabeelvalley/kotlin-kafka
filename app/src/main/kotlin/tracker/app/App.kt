@@ -86,16 +86,13 @@ fun stream(streamBuilder: IStreamBuilder<GeneratedData, ProcessedData>, inputTop
 
     return scope.launch {
         stream.startStreaming(outputTopic, processor) { close ->
-            scope.launch {
-
-                // Non-blocking loop as long as the coroutine is active
-                while (isActive) {
-                    delay(10_000)
-                }
-
-                // close when no longer active
-                close()
+            // Non-blocking loop as long as the coroutine is active
+            while (isActive) {
+                delay(10_000)
             }
+
+            // close when no longer active
+            close()
         }
     }
 }
