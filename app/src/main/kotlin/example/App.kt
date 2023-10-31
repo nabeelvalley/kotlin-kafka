@@ -23,7 +23,7 @@ fun main() {
 
     val consumeJob = consume(client.consumer, outputTopic)
     val produceJob = produce(client.producer, inputTopic)
-    val streamJob = stream(client.streamInverse, inputTopic, outputTopic)
+    val streamJob = process(client.streamInverse, inputTopic, outputTopic)
 
 
     runBlocking {
@@ -72,7 +72,7 @@ fun consume(client: IConsumer<ProcessedData>, topic: String): Job {
     }
 }
 
-fun stream(streamBuilder: IStreamBuilder<GeneratedData, ProcessedData>, inputTopic: String, outputTopic: String): Job {
+fun process(streamBuilder: IStreamBuilder<GeneratedData, ProcessedData>, inputTopic: String, outputTopic: String): Job {
     val scope = CoroutineScope(Dispatchers.IO)
     val stream = streamBuilder.fromTopic(inputTopic)
 
@@ -84,7 +84,8 @@ fun stream(streamBuilder: IStreamBuilder<GeneratedData, ProcessedData>, inputTop
 
     return scope.launch {
         stream.startStreaming(outputTopic, processor) { close ->
-            scope.launch {
+            coroutineScope {
+                println("Processor starting")
                 // Non-blocking loop as long as the coroutine is active
                 while (isActive) {
                     delay(10_000)
@@ -92,6 +93,7 @@ fun stream(streamBuilder: IStreamBuilder<GeneratedData, ProcessedData>, inputTop
 
                 // close when no longer active
                 close()
+                println("Processor closed")
             }
         }
     }
