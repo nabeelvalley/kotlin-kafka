@@ -19,6 +19,7 @@ publishing {
                 username = System.getenv("USERNAME")
                 password = System.getenv("TOKEN")
             }
+            version = "0.0.0"
         }
     }
     publications {
