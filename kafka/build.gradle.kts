@@ -6,7 +6,26 @@
 
 plugins {
     id("tracker.kotlin-library-conventions")
+    id("maven-publish")
     kotlin("plugin.serialization") version "1.9.10"
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/nabeelvalley/kotlin-kafka")
+            credentials {
+                username = System.getenv("USERNAME")
+                password = System.getenv("TOKEN")
+            }
+        }
+    }
+    publications {
+        register<MavenPublication>("gpr") {
+            from(components.findByName("java"))
+        }
+    }
 }
 
 dependencies {
