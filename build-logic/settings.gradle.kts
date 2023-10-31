@@ -5,4 +5,4 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-rootProject.name = "tracker-build-logic"
+rootProject.name = "build-logic"

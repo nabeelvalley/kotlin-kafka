@@ -18,5 +18,5 @@ dependencies {
 
 application {
     // Define the main class for the application.
-    mainClass.set("tracker.app.AppKt")
+    mainClass.set("example.AppKt")
 }

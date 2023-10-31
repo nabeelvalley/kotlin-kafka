@@ -1,3 +1,5 @@
+package za.co.nabeelvalley.kafka
+
 import java.util.*
 import kotlin.reflect.KClass
 

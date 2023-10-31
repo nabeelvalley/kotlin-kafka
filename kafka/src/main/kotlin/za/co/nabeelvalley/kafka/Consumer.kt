@@ -1,3 +1,5 @@
+package za.co.nabeelvalley.kafka
+
 import kotlinx.coroutines.runBlocking
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer

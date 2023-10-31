@@ -1,3 +1,5 @@
+package za.co.nabeelvalley.kafka
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

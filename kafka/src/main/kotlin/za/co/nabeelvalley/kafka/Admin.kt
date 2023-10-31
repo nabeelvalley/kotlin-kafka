@@ -1,4 +1,5 @@
-import Config
+package za.co.nabeelvalley.kafka
+
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.NewTopic
 import java.util.*

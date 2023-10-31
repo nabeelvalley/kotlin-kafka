@@ -1,14 +1,12 @@
-package tracker.app
+package example
 
-import IConsumer
-import IProducer
-import IStreamBuilder
-import KafkaClient
 import io.github.cdimascio.dotenv.Dotenv
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
-import org.apache.kafka.clients.CommonClientConfigs
-import org.apache.kafka.clients.producer.ProducerConfig
+import za.co.nabeelvalley.kafka.IConsumer
+import za.co.nabeelvalley.kafka.IProducer
+import za.co.nabeelvalley.kafka.IStreamBuilder
+import za.co.nabeelvalley.kafka.KafkaClient
 import java.io.FileInputStream
 import java.util.*
 
@@ -86,13 +84,15 @@ fun stream(streamBuilder: IStreamBuilder<GeneratedData, ProcessedData>, inputTop
 
     return scope.launch {
         stream.startStreaming(outputTopic, processor) { close ->
-            // Non-blocking loop as long as the coroutine is active
-            while (isActive) {
-                delay(10_000)
-            }
+            scope.launch {
+                // Non-blocking loop as long as the coroutine is active
+                while (isActive) {
+                    delay(10_000)
+                }
 
-            // close when no longer active
-            close()
+                // close when no longer active
+                close()
+            }
         }
     }
 }

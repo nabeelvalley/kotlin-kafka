@@ -1,3 +1,5 @@
+package za.co.nabeelvalley.kafka
+
 import org.apache.kafka.common.serialization.Serde
 
 interface ISerializer<T : Any> {

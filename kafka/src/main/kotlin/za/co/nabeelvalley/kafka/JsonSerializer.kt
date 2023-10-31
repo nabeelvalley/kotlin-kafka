@@ -1,3 +1,5 @@
+package za.co.nabeelvalley.kafka
+
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.Json.Default.encodeToString

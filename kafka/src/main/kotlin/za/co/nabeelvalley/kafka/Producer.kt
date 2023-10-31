@@ -1,3 +1,5 @@
+package za.co.nabeelvalley.kafka
+
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import java.util.*
@@ -13,11 +15,11 @@ typealias Send<T> = (topic: String, message: T) -> Unit
 typealias Produce<T> = suspend (send: Send<T>) -> Unit
 
 fun <T : Any> produce(properties: Properties, serializer: ISerializer<T>, callback: Produce<T>) {
-    createProducer(properties).use {
+    createProducer(properties).use { producer ->
         val send = fun(topic: String, message: T) {
             val payload = serializer.serialize(message)
             val record = createRecord(topic, payload)
-            it.send(record)
+            producer.send(record)
         }
 
         runBlocking {

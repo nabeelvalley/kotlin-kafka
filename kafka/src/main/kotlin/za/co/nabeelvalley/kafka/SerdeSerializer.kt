@@ -1,3 +1,5 @@
+package za.co.nabeelvalley.kafka
+
 import org.apache.kafka.common.serialization.Serializer
 
 class SerdeSerializer<T : Any>(private val serializer: ISerializer<T>) : Serializer<T> {
