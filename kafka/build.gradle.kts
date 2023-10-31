@@ -13,11 +13,11 @@ plugins {
 publishing {
     repositories {
         maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/nabeelvalley/kotlin-kafka")
+            name = "OSSRH"
+            url = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
             credentials {
                 username = System.getenv("USERNAME")
-                password = System.getenv("TOKEN")
+                password = System.getenv("PASSWORD")
             }
             group = "za.co.nabeelvalley"
             version = "0.0.1"

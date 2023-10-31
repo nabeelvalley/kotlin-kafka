@@ -4,7 +4,6 @@
 # documentation.
 # This workflow will build a package using Gradle and then publish it to GitHub packages when a release is created
 # For more information see: https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#Publishing-using-gradle
-
 name: Gradle Package
 
 on:
@@ -26,12 +25,15 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
+        server-id: ossrh
         settings-path: ${{ github.workspace }} # location for the settings.xml file
+        server-username: USERNAME
+        server-password: PASSWORD
+      env:
+        USERNAME: ${{ secrets.MAVEN_USERNAME }}
+        PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
 
-    - name: Run chmod to make gradlew executable
-      run: chmod +x ./gradlew
-   
+
     - name: Build with Gradle
       uses: gradle/gradle-build-action@bd5760595778326ba7f1441bcf7e88b49de61a25 # v2.6.0
       with:
@@ -44,5 +46,5 @@ jobs:
       with:
         arguments: publish
       env:
-        USERNAME: ${{ github.actor }}
-        TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        USERNAME: ${{ secrets.MAVEN_USERNAME }}
+        PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
