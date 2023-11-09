@@ -515,3 +515,191 @@ fun instantiateAndConsume(properties: Properties): Unit {
 ```
 
 In the above, we use a `while(true)` loop to re-poll continuously but this can freely change on the implementation, similar to with the producer code
+
+## Stream Processing
+
+In Kafka, we can think of a stream process as a combination of a consumer and producer such that data comes in from a topic and is sent to a different topic
+
+The thing that makes streams interesting is the builder API that the Kafka Java Library provides to us for defining the operations to be done on the stream data. For our implementation we'll be referring to this as a `TransformProcessor`, this processor needs to take in some data of type `TConsume` and return data of type `TProduce`, however, since we want to provide users complete flexibility in working with this data, we will instead more generally allow a user to convert a stream between the predefined data types, using the underlying library this is called a `KStream`
+
+From a type perspective, we can define a `TransformProcessor` as follows:
+
+`SerializedStream.kt`
+
+```kotlin
+typealias TransformProcessor<TConsume, TProduce> = (stream: KStream<String, TConsume>) -> KStream<String, TProduce>
+```
+
+Now, we're going to be starting this implementation from what we want, assuming that it is possible for us to in some way define a `KStream` that is instantiated to work with our connection and the respective `TConsume` and `TProduce` data.
+
+We will also be using a type called `Produced` which is what the Kafka Client uses to represent the data that the stream will return since this is what we need in order to send data to a processor
+
+Our implementation will be called a `SerializedStream` and this looks like the following:
+
+`SerializedStream.kt`
+
+```kotlin
+package za.co.nabeelvalley.kafka
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import org.apache.kafka.streams.KafkaStreams
+import org.apache.kafka.streams.StreamsBuilder
+import org.apache.kafka.streams.kstream.KStream
+import org.apache.kafka.streams.kstream.Produced
+import java.util.*
+
+typealias TransformProcessor<TConsume, TProduce> = (stream: KStream<String, TConsume>) -> KStream<String, TProduce>
+typealias Close = () -> Unit
+typealias Process = suspend (close: Close) -> Unit
+
+class SerializedStream<TConsume : Any, TProduce : Any>(
+    private val properties: Properties,
+    private val builder: StreamsBuilder,
+    private val producer: Produced<String, TProduce>,
+    private val stream: KStream<String, TConsume>
+) {
+   fun startStreaming(
+      topic: String,
+      processor: KStream<String, TProduce>,
+      process: Process
+   ): Job {
+      processor.to(topic, producer)
+
+      val streams = KafkaStreams(
+         builder.build(),
+         properties
+      )
+
+      val scope = CoroutineScope(Dispatchers.IO)
+      return scope.launch {
+         streams.start()
+         process()
+         streams.close()
+      }
+   }
+
+   fun getProcessor(
+       processor: TransformProcessor<TConsume, TProduce>
+   ): KStream<String, TProduce> = processor(stream)
+}
+```
+
+In the above implementation we have an input to our `startStreaming` function called `process`, the `process` function is a callback that needs to call `close` once it is done running. When the `process` function returns the processing will stop, the scope of this function also defines lifecycle of the stream processor and is used for that purpose
+
+So we have defined the processing methodology using a `KStream` but have not provided a way to create a `KStream`. Since the stream can be defined in many different ways, we can define this using a builder class called `StreamBuilder`. This class will be instantiated with the Kafka connection properties and input/output serializers, thereafter it can produce methods for instantiating the `SerializedStream` instance that we can use for data processing
+
+For the sake of our example we will provide a method called `fromTopic` which returns a `SerializedStream` that is configured to work on a single topic, and a `fromTopics` method which will return a `SerializedStream` that listens to multiple topics:
+
+`StreamBuilder.kt`
+
+```kotlin
+package za.co.nabeelvalley.kafka
+
+import org.apache.kafka.common.serialization.Serdes
+import org.apache.kafka.streams.StreamsBuilder
+import org.apache.kafka.streams.kstream.Consumed
+import org.apache.kafka.streams.kstream.Produced
+import java.util.*
+
+interface IStreamBuilder<TConsume : Any, TProduce : Any> {
+    fun fromTopic(topic: String): SerializedStream<TConsume, TProduce>
+    fun fromTopics(topics: List<String>): SerializedStream<TConsume, TProduce>
+}
+```
+
+An implementation of this interface is as follows:
+
+`StreamBuilder.kt`
+
+```kotlin
+class StreamBuilder<TConsume : Any, TProduce : Any>(
+    properties: Properties,
+    consumeSerializer: ISerializer<TConsume>,
+    producerSerializer: ISerializer<TProduce>,
+) : Config(properties), IStreamBuilder<TConsume, TProduce> {
+    private val inputSerde = Serializer<TConsume>(consumeSerializer)
+    private val consumed = Consumed.with(Serdes.String(), inputSerde)
+
+    private val outputSerde = Serializer<TProduce>(producerSerializer)
+    private val produced = Produced.with(Serdes.String(), outputSerde)
+
+    override fun fromTopic(topic: String): SerializedStream<TConsume, TProduce> {
+        val builder = StreamsBuilder()
+        val stream = builder.stream(mutableListOf(topic), consumed)
+
+        return SerializedStream(properties, builder, produced, stream)
+    }
+
+    override fun fromTopics(topics: List<String>): SerializedStream<TConsume, TProduce> {
+        val builder = StreamsBuilder()
+        val stream = builder.stream(topics.toMutableList(), consumed)
+
+        return SerializedStream(properties, builder, produced, stream)
+    }
+}
+```
+
+The above class makes use of the `produced` and `consumed` properties which are what Kafka will use for serializing and deserializing data in the stream
+
+And that's about it as far as our implementation for streaming goes
+
+### Using the Stream Processor
+
+We can use the stream processor code:
+
+`App.kt`
+
+```kotlin
+fun initializeAndProcess(properties: Properties): Job {
+    val producedSerializer = JsonSerializer(ProducerData::class)
+    val consumedSerializer = JsonSerializer(ConsumerData::class)
+    val streamBuilder = StreamBuilder(properties, consumedSerializer, producedSerializer)
+    val stream = streamBuilder.fromTopic("input-topic")
+
+    val processor = stream.getProcessor { kStream ->
+        kStream.mapValues { key, value ->
+            ProducerData("Message processed: $key", value.key)
+        }
+    }
+
+    val scope = CoroutineScope(Dispatchers.IO)
+    return scope.launch {
+        stream.startStreaming("output-topic", processor) { close ->
+            coroutineScope {
+                println("Processor starting")
+                // Non-blocking loop as long as the coroutine is active
+                while (isActive) {
+                    delay(10_000)
+                }
+
+                // close when no longer active
+                close()
+                println("Processor closed")
+            }
+        }
+    }
+}
+```
+
+Most of this is just the normal construction that you will have for any instance of the stream client, what is interesting is the part where we define the processor:
+
+`App.kt`
+
+```kotlin
+val processor = stream.getProcessor { kStream ->
+    kStream.mapValues { key, value ->
+        ProducerData("Message processed: $key", value.key)
+    }
+}
+```
+
+In the above example we are simply mapping a single record using `mapValues`, this is very similar to the Collection methods available in Kotlin but is instead used to define how data will be transformed in the stream
+
+The processor we define is what will be executed on records or groups of records depending on how we want to handle the resulting data
+
+# Conclusion
+
+In this post we've covered the basic implementation of how we can interact with Kafka using the Kotlin programming language and built a small library that takes us through the basic use cases of Serializing, Producing, Consuming, and Processing stream data

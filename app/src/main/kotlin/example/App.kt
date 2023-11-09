@@ -133,6 +133,37 @@ fun process(streamBuilder: IStreamBuilder<GeneratedData, ProcessedData>, inputTo
     }
 }
 
+fun initializeAndProcess(properties: Properties): Job {
+    val producedSerializer = JsonSerializer(ProducerData::class)
+    val consumedSerializer = JsonSerializer(ConsumerData::class)
+    val streamBuilder = StreamBuilder(properties, consumedSerializer, producedSerializer)
+    val stream = streamBuilder.fromTopic("input-topic")
+
+    val processor = stream.getProcessor { kStream ->
+        kStream.mapValues { key, value ->
+            ProducerData("Message processed: $key", value.key)
+        }
+    }
+
+    val scope = CoroutineScope(Dispatchers.IO)
+    return scope.launch {
+        stream.startStreaming("output-topic", processor) { close ->
+            coroutineScope {
+                println("Processor starting")
+                // Non-blocking loop as long as the coroutine is active
+                while (isActive) {
+                    delay(10_000)
+                }
+
+                // close when no longer active
+                close()
+                println("Processor closed")
+            }
+        }
+    }
+}
+
+
 fun produce(client: IProducer<GeneratedData>, topic: String): Job {
     val producerScope = CoroutineScope(Dispatchers.IO)
     return producerScope.launch {
