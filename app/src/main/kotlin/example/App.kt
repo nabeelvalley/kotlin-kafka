@@ -3,10 +3,7 @@ package example
 import io.github.cdimascio.dotenv.Dotenv
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
-import za.co.nabeelvalley.kafka.IConsumer
-import za.co.nabeelvalley.kafka.IProducer
-import za.co.nabeelvalley.kafka.IStreamBuilder
-import za.co.nabeelvalley.kafka.KafkaClient
+import za.co.nabeelvalley.kafka.*
 import java.io.FileInputStream
 import java.util.*
 
@@ -52,6 +49,43 @@ fun loadProperties(): Properties {
     props["sasl.jaas.config"] = dotenv["SASL_JAAS_CONFIG"]
 
     return props
+}
+
+@Serializable
+data class ProducerData(val message: String, val key: Int)
+
+fun instantiateAndProduce(properties: Properties): Unit {
+    val serializer = JsonSerializer(ProducerData::class)
+    val producer = Producer(properties, serializer)
+
+    runBlocking {
+        producer.produce { send ->
+            val data = ProducerData("Hello world", 1)
+            send("my-topic", data)
+        }
+    }
+}
+
+
+@Serializable
+data class ConsumerData(val message: String, val key: Int)
+
+fun instantiateAndConsume(properties: Properties): Unit {
+    val serializer = JsonSerializer(ConsumerData::class)
+    val consumer = Consumer(properties, serializer)
+
+    runBlocking {
+        consumer.consume(listOf("my-topic"), 1000) { poll ->
+            while (true) {
+                val messages = poll()
+
+                println("Received ${messages.size} messages")
+                messages.forEach(fun(message) {
+                    println("Received: $message")
+                })
+            }
+        }
+    }
 }
 
 

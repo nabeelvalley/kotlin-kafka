@@ -10,7 +10,6 @@ class SerdeDeserializer<T : Any>(private val serializer: ISerializer<T>) : Deser
         } catch (error: Error) {
             println("Error Deserializing Data: $error")
             return null
-            throw error
         }
     }
 }
